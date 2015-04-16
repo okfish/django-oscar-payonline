@@ -14,16 +14,24 @@ CheckoutSessionMixin = get_class('checkout.session', 'CheckoutSessionMixin')
 from payonline import views as payonline_views
 from sitesutils.helpers import get_site
 
+
+from .facade import merchant_reference
 from .exceptions import (
     EmptyBasketException, MissingShippingAddressException,
     MissingShippingMethodException, PayOnlineError)
 
 class RedirectView(CheckoutSessionMixin, payonline_views.PayView):
 
+    def __init__(self, *args, **kwargs):
+        self._order_id = ''
+        super(RedirectView, self).__init__(*args, **kwargs)
+        
     def get_order_id(self):
         basket_id = self.request.basket.id
         merchant_id = self.get_merchant_id()
-        return "%s-%s" % (merchant_id, basket_id) 
+        if not self._order_id:
+            self._order_id = merchant_reference(merchant_id, basket_id)
+        return self._order_id
         #return unicode(self.request.session.get('payonline_order_id', ''))
 
     def get_amount(self):
