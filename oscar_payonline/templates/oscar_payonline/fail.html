@@ -1,0 +1,27 @@
+{% extends "checkout/checkout.html" %}
+{% load currency_filters %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Failed payment via PayOnline.ru" %} | {{ block.super }}
+{% endblock %}
+
+{% block checkout_nav %}
+    {% include 'checkout/nav.html' with step=3 %}
+{% endblock %}
+
+{% block checkout_title %}{% trans "Failed payment via PayOnline.ru" %}{% endblock %}
+
+{% block order_contents %}{% endblock %}
+{% block shipping_address %}{% endblock %}
+{% block shipping_method %}{% endblock %}
+{% block payment_method %}{% endblock %}
+
+{% block payment_details %}
+    {% block payment_details_content %}
+        <p>{% trans "Oops, something happens wrong while processing payment using PayOnline.ru service" %}</p>
+         <p>{% trans "Error code returned:" %}{{ error_code }}</p>
+        <a id="view_payment_method" href="{% url 'checkout:payment-method' %}" class="btn btn-primary btn-lg">{% trans "Try again" %}</a> 
+        <a id="view_preview" href="{% url 'checkout:preview' %}" class="btn btn-primary btn-lg pull-right">{% trans "Continue" %}</a>
+    {% endblock payment_details_content %}
+{% endblock payment_details %}
