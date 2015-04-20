@@ -7,6 +7,7 @@ from django.http import (HttpResponseBadRequest,
 from django.core.urlresolvers import reverse
 from django.db.models import get_model
 from django.shortcuts import render, get_object_or_404
+from django.utils.translation import ugettext as _
 
 from oscar.core.loading import get_class
 from oscar.apps.checkout.views import PaymentDetailsView
@@ -168,7 +169,7 @@ class FailView(payonline_views.FailView):
             backend(request, err_code)
         
         return render(request, self.template_name, {
-            'error' : ('PayOnline returned an error code: %s' % err_code),
+            'error' : (_('PayOnline returned an error code: %s') % err_code),
             'error_code': err_code,
         })
     
