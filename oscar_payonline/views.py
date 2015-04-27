@@ -1,28 +1,40 @@
+from decimal import Decimal as D
 import urllib
 import logging
 
 from django.http import (HttpResponseBadRequest,
                          HttpResponseRedirect,
                          HttpResponse)
+from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.db.models import get_model
 from django.shortcuts import render, get_object_or_404
 from django.utils.translation import ugettext as _
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
 from oscar.core.loading import get_class
-from oscar.apps.checkout.views import PaymentDetailsView
+#from oscar.apps.checkout.views import PaymentDetailsView
+from oscar.apps.checkout.exceptions import FailedPreCondition
 
 from payonline import views as payonline_views
 from payonline.loader import get_success_backends, get_fail_backends
 from sitesutils.helpers import get_site
 
-from .facade import merchant_reference, defrost_basket
+from .facade import (merchant_reference, 
+                     defrost_basket, 
+                     load_frozen_basket,
+                     fetch_transaction_details,
+                     confirm_transaction)
 from .exceptions import (
     EmptyBasketException, MissingShippingAddressException,
     MissingShippingMethodException, PayOnlineError)
 
+PaymentDetailsView = get_class('checkout.views', 'PaymentDetailsView')
 CheckoutSessionMixin = get_class('checkout.session', 'CheckoutSessionMixin')
 Basket = get_model('basket', 'Basket')
+Source = get_model('payment', 'Source')
+SourceType = get_model('payment', 'SourceType')
 
 logger = logging.getLogger('payonline')
 
@@ -80,6 +92,13 @@ class RedirectView(CheckoutSessionMixin, payonline_views.PayView):
         params = self.get_query_params()
         return '%s?%s' % (self.get_payonline_url(), urllib.urlencode(params))
 
+    def get_return_url(self):
+        site = get_site(self.request)
+        basket_id = self.request.basket.id
+        return 'http://%s%s?ref=%s' % (site.domain, 
+                                             reverse('payonline-success', args=(basket_id,)),
+                                             self.payonline_order_id)
+
     def get_fail_url(self):
         site = get_site(self.request)
         return 'http://%s%s' % (site.domain, reverse('payonline-fail'))
@@ -104,23 +123,32 @@ class RedirectView(CheckoutSessionMixin, payonline_views.PayView):
         return HttpResponseBadRequest()
 
 class CallbackView(payonline_views.CallbackView):
-    pass
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        logger.info("Received a call from PayOnline service. Dispatching...")
+        return super(CallbackView, self).dispatch(*args, **kwargs)
 
 
 class SuccessView(PaymentDetailsView):
     template_name_preview = 'oscar_payonline/preview.html'
     preview = True
+    basket = None
     
+    # We don't have the usual pre-conditions (Oscar 1.0+ supported only)
+    @property
+    def pre_conditions(self):
+        return []
+            
     def get_context_data(self, **kwargs):
         ctx = super(SuccessView, self).get_context_data(**kwargs)
 
         # This context generation only runs when in preview mode
         ctx.update({
-            'frozen_basket': self.basket,
+            'merchant_reference': self.merchant_ref,
+            'payonline_order_id': self.txn.order_id,
+            'payonline_amount': D(self.txn.amount),
+            'payonline_provider': self.txn.provider,
         })
-        ctx['shipping_method'] = self.get_shipping_method()
-        ctx['order_total_incl_tax'] = D(self.txn.value('PAYMENTREQUEST_0_AMT'))
-
         return ctx
 
     def get(self, request, *args, **kwargs):
@@ -129,25 +157,155 @@ class SuccessView(PaymentDetailsView):
         PayOnline.  We use these details to show a preview of
         the order with a 'submit' button to place it.
         """
-
-
-        # Lookup the frozen basket that this txn corresponds to
+        error_msg = _(
+            "We cannot find transaction details or "
+            "a problem occurred communicating with PayOnline "
+            "- please try again later"
+        )
+        
         try:
-            self.basket = Basket.objects.get(id=kwargs['basket_id'],
-                                             status=Basket.FROZEN)
-        except Basket.DoesNotExist:
+            self.merchant_ref = request.GET['ref']
+            #self.token = request.GET['token']
+        except KeyError:
+            # Manipulation - redirect to basket page with warning message
+            logger.warning("Missing GET params on success response page")
+            messages.error(
+                self.request,
+                _("Unable to determine PayOnline transaction details"))
+            return HttpResponseRedirect(reverse('basket:summary'))
+        
+        try:
+            self.txn = fetch_transaction_details(self.merchant_ref)
+        except PayOnlineError as e:
+            logger.warning(
+                "Unable to fetch transaction details for reference %s: %s",
+                self.merchant_ref, e)
+            messages.error(
+                self.request,
+                _("Couldnt find confrimed transaction"
+                  " - please try again later or choose other method"))
+            return HttpResponseRedirect(reverse('checkout:payment-method'))
+        
+        # Reload frozen basket which is specified in the URL
+        kwargs['basket'] = load_frozen_basket(request, kwargs['basket_id'])
+        
+        if not kwargs['basket']:
+            logger.warning(
+                "Unable to load frozen basket with ID %s", kwargs['basket_id'])
             messages.error(
                 self.request,
                 _("No basket was found that corresponds to your "
                   "PayOnline transaction"))
             return HttpResponseRedirect(reverse('basket:summary'))
 
-        return super(SuccessResponseView, self).get(request, *args, **kwargs)
+        logger.info(
+            "Basket #%s - showing preview with payment reference %s",
+            kwargs['basket'].id, self.merchant_ref)
+        self.preview = True
+        return super(SuccessView, self).get(request, *args, **kwargs)
+    
+    #Two methods below based on Oscar's PayPal extension
+    def post(self, request, *args, **kwargs):
+        """
+        Place an order.
+
+        We fetch the txn details again and then proceed with oscar's standard
+        payment details view for placing the order.
+        """
+        error_msg = _(
+            "A problem occurred communicating with PayOnline "
+            "- please try again later"
+        )
+        try:
+            self.merchant_ref = request.POST['ref']
+        except KeyError:
+            # Probably suspicious manipulation if we get here
+            messages.error(self.request, error_msg)
+            logger.error(
+                "Suspicious! No POST params in the request %s", self.request)
+            return HttpResponseRedirect(reverse('checkout:payment-method'))
+
+        try:
+            self.txn = fetch_transaction_details(self.merchant_ref)
+        except PayOnlineError as e:
+            # Unable to fetch txn details from PayPal - we have to bail out
+            messages.error(self.request, error_msg)
+            logger.warning(
+                "Unable to fetch transaction with ID %s: %s", self.merchant_ref, e)
+            return HttpResponseRedirect(reverse('checkout:payment-method'))
+
+        # Reload frozen basket which is specified in the URL
+        basket = load_frozen_basket(request, kwargs['basket_id'])
+        if not basket:
+            logger.error(
+                "Unable to load frozen basket with ID %s", kwargs['basket_id'])
+            messages.error(self.request, error_msg)
+            return HttpResponseRedirect(reverse('basket:summary'))
+        logger.info(
+                "Start order submission for basket with ID %s", kwargs['basket_id'])
+        submission = self.build_submission(basket=basket)
+        return self.submit(**submission)
+
+    def build_submission(self, **kwargs):
+        submission = super(
+            SuccessView, self).build_submission(**kwargs)
+        # Pass the user email so it can be stored with the order
+        submission['order_kwargs']['guest_email'] = submission['user'].email
+        # Pass PayOnline params
+        #submission['payment_kwargs']['payer_id'] = self.payer_id
+        submission['payment_kwargs']['ref'] = self.merchant_ref
+        submission['payment_kwargs']['txn'] = self.txn
+        return submission
+
+    def handle_payment(self, order_number, total, **kwargs):
+        """
+        Complete payment with PayOnline - this should compare local txn data
+        and PayOnline txn info using API method to capture 
+        the money from the initial transaction.
+        TODO: remote call to PayOnline
+        """
+        try:
+            confirm_txn = confirm_transaction(
+                kwargs['ref'], kwargs['txn'].amount,
+                kwargs['txn'].currency)
+        except PayOnlineError as e:
+            logger.error(
+                "Transaction #%s not confirmed. Errors: %s", kwargs['ref'], e)
+            raise UnableToTakePayment()
+        if not confirm_txn.transaction_id:
+            logger.error(
+                "Cant find transaction ID for #%s ", kwargs['ref'])
+            raise UnableToTakePayment()
+
+        # Record payment source and event
+        source_type, is_created = SourceType.objects.get_or_create(
+            name='PayOnline')
+        source = Source(source_type=source_type,
+                        currency=confirm_txn.currency,
+                        amount_allocated=confirm_txn.amount,
+                        amount_debited=confirm_txn.amount,
+                        reference=confirm_txn.order_id)
+        self.add_payment_source(source)
+        self.add_payment_event('Settled', confirm_txn.amount,
+                               reference=confirm_txn.order_id)
+        logger.info(
+                "Payment event saved (type:%s, amount:%s, ref: %s)", source_type, 
+                                                          confirm_txn.amount,
+                                                          confirm_txn.order_id)
+
+    def get_error_response(self):
+        # We bypass the normal session checks for shipping address and shipping
+        # method as they don't apply here.
+        pass
 
 class FailView(payonline_views.FailView):
     template_name = 'oscar_payonline/fail.html'
     
     def get(self, request, *args, **kwargs):
+        if 'basket_id' not in request.GET:
+            logger.error("Failed callback from PayOnline service: no basket_id given")
+            logger.debug("Raw request: %s", request.GET)
+            return HttpResponseBadRequest()
         basket_id = request.GET['basket_id'] 
         defrost_basket(basket_id)
         if 'ErrorCode' not in request.GET:
@@ -156,8 +314,9 @@ class FailView(payonline_views.FailView):
         err_code = request.GET['ErrorCode']
         ref_id = request.GET['OrderId']
         txn_id = request.GET['TransactionID']
-        logger.info("Failed PayOnline transaction (txn_id=%s, merchant_reference=%s, error_code=%s)",
-                txn_id, ref_id, err_code)
+        logger.error("Failed PayOnline transaction (txn_id=%s," 
+                    "merchant_reference=%s, error_code=%s)",
+                    txn_id, ref_id, err_code)
         return HttpResponse()
         
     def post(self, request, *args, **kwargs):
