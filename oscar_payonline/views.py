@@ -7,15 +7,12 @@ from django.http import (HttpResponseBadRequest,
                          HttpResponse)
 from django.contrib import messages
 from django.core.urlresolvers import reverse
-from django.db.models import get_model
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.utils.translation import ugettext as _
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
-from oscar.core.loading import get_class
-#from oscar.apps.checkout.views import PaymentDetailsView
-from oscar.apps.checkout.exceptions import FailedPreCondition
+from oscar.core.loading import get_class, get_model
 
 from payonline import views as payonline_views
 from payonline.loader import get_success_backends, get_fail_backends
@@ -27,9 +24,9 @@ from .facade import (merchant_reference,
                      fetch_transaction_details,
                      confirm_transaction)
 from .exceptions import (
-    EmptyBasketException, MissingShippingAddressException,
-    MissingShippingMethodException, PayOnlineError)
+    EmptyBasketException, PayOnlineError)
 
+UnableToTakePayment = get_class('payment.exceptions', 'UnableToTakePayment')
 PaymentDetailsView = get_class('checkout.views', 'PaymentDetailsView')
 CheckoutSessionMixin = get_class('checkout.session', 'CheckoutSessionMixin')
 Basket = get_model('basket', 'Basket')
@@ -37,6 +34,7 @@ Source = get_model('payment', 'Source')
 SourceType = get_model('payment', 'SourceType')
 
 logger = logging.getLogger('payonline')
+
 
 class RedirectView(CheckoutSessionMixin, payonline_views.PayView):
 
@@ -96,8 +94,8 @@ class RedirectView(CheckoutSessionMixin, payonline_views.PayView):
         site = get_site(self.request)
         basket_id = self.request.basket.id
         return 'http://%s%s?ref=%s' % (site.domain, 
-                                             reverse('payonline-success', args=(basket_id,)),
-                                             self.payonline_order_id)
+                                       reverse('payonline-success', args=(basket_id,)),
+                                       self.payonline_order_id)
 
     def get_fail_url(self):
         site = get_site(self.request)
@@ -109,7 +107,7 @@ class RedirectView(CheckoutSessionMixin, payonline_views.PayView):
         basket_id = self.request.basket.id
         logger.info("Started processing PayOnline request"
                     " (order_id=%s, amount=%s, basket_id=%s)",
-                payonline_order_id, payonline_amount, basket_id)
+                    payonline_order_id, payonline_amount, basket_id)
         
         if payonline_order_id:
             self.payonline_order_id = payonline_order_id
@@ -147,7 +145,8 @@ class SuccessView(PaymentDetailsView):
             'merchant_reference': self.merchant_ref,
             'payonline_order_id': self.txn.order_id,
             'payonline_amount': D(self.txn.amount),
-            'payonline_provider': self.txn.provider,
+            'payonline_provider': self.txn.provider_name,
+            'payonline_provider_code': self.txn.provider,
         })
         return ctx
 
@@ -165,7 +164,6 @@ class SuccessView(PaymentDetailsView):
         
         try:
             self.merchant_ref = request.GET['ref']
-            #self.token = request.GET['token']
         except KeyError:
             # Manipulation - redirect to basket page with warning message
             logger.warning("Missing GET params on success response page")
@@ -204,7 +202,7 @@ class SuccessView(PaymentDetailsView):
         self.preview = True
         return super(SuccessView, self).get(request, *args, **kwargs)
     
-    #Two methods below based on Oscar's PayPal extension
+    # Two methods below based on Oscar's PayPal extension
     def post(self, request, *args, **kwargs):
         """
         Place an order.
@@ -252,7 +250,6 @@ class SuccessView(PaymentDetailsView):
         # Pass the user email so it can be stored with the order
         submission['order_kwargs']['guest_email'] = submission['user'].email
         # Pass PayOnline params
-        #submission['payment_kwargs']['payer_id'] = self.payer_id
         submission['payment_kwargs']['ref'] = self.merchant_ref
         submission['payment_kwargs']['txn'] = self.txn
         return submission
@@ -289,14 +286,16 @@ class SuccessView(PaymentDetailsView):
         self.add_payment_event('Settled', confirm_txn.amount,
                                reference=confirm_txn.order_id)
         logger.info(
-                "Payment event saved (type:%s, amount:%s, ref: %s)", source_type, 
-                                                          confirm_txn.amount,
-                                                          confirm_txn.order_id)
+                "Payment event saved (type:%s, amount:%s, ref: %s)",
+                source_type,
+                confirm_txn.amount,
+                confirm_txn.order_id)
 
     def get_error_response(self):
         # We bypass the normal session checks for shipping address and shipping
         # method as they don't apply here.
         pass
+
 
 class FailView(payonline_views.FailView):
     template_name = 'oscar_payonline/fail.html'
@@ -315,8 +314,8 @@ class FailView(payonline_views.FailView):
         ref_id = request.GET['OrderId']
         txn_id = request.GET['TransactionID']
         logger.error("Failed PayOnline transaction (txn_id=%s," 
-                    "merchant_reference=%s, error_code=%s)",
-                    txn_id, ref_id, err_code)
+                     "merchant_reference=%s, error_code=%s)",
+                     txn_id, ref_id, err_code)
         return HttpResponse()
         
     def post(self, request, *args, **kwargs):
@@ -328,7 +327,6 @@ class FailView(payonline_views.FailView):
             backend(request, err_code)
         
         return render(request, self.template_name, {
-            'error' : (_('PayOnline returned an error code: %s') % err_code),
+            'error': (_('PayOnline returned an error code: %s') % err_code),
             'error_code': err_code,
         })
-    
