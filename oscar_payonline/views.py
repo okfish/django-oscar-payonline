@@ -15,14 +15,17 @@ from django.views.decorators.csrf import csrf_exempt
 from oscar.core.loading import get_class, get_model
 
 from payonline import views as payonline_views
-from payonline.loader import get_success_backends, get_fail_backends
+from payonline.loader import get_fail_backends
+
 from sitesutils.helpers import get_site
 
 from .facade import (merchant_reference, 
                      defrost_basket, 
                      load_frozen_basket,
                      fetch_transaction_details,
-                     confirm_transaction)
+                     confirm_transaction,
+                     get_error_message,)
+
 from .exceptions import (
     EmptyBasketException, PayOnlineError)
 
@@ -327,6 +330,6 @@ class FailView(payonline_views.FailView):
             backend(request, err_code)
         
         return render(request, self.template_name, {
-            'error': (_('PayOnline returned an error code: %s') % err_code),
+            'error': get_error_message(err_code),
             'error_code': err_code,
         })

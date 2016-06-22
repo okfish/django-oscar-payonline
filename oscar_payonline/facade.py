@@ -7,14 +7,15 @@ from django.utils.translation import ugettext_lazy as _
 from oscar.core.loading import get_class, get_model
 from oscar.apps.payment.exceptions import UnableToTakePayment, InvalidGatewayRequestError
 
-
 from payonline.models import PaymentData
+from payonline.helpers import APIErrors
 
 from .exceptions import PayOnlineError
 
 Basket = get_model('basket', 'Basket')
 Applicator = get_class('offer.utils', 'Applicator')
 Selector = get_class('partner.strategy', 'Selector')
+
 
 def merchant_reference(merchant_id, basket_id):
     # Ideas stolen from Oscar's Datacash facade
@@ -25,10 +26,12 @@ def merchant_reference(merchant_id, basket_id):
     rand = "%04.f" % (random.random() * 10000)
     return u'%s-%s-%s' % (merchant_id, basket_id, rand)
 
+
 def defrost_basket(basket_id):
     basket = get_object_or_404(Basket, id=basket_id,
                                status=Basket.FROZEN)
     basket.thaw()    
+
 
 def load_frozen_basket(request, basket_id):
     # Ideas stolen from Oscar's PayPal facade
@@ -48,6 +51,7 @@ def load_frozen_basket(request, basket_id):
 
     return basket
 
+
 def fetch_transaction_details(ref):
     txn = None
     try:
@@ -56,6 +60,7 @@ def fetch_transaction_details(ref):
         msg = "Error for %s: PaymentData does not exists" % ref
         raise PayOnlineError(msg)
     return txn
+
 
 def confirm_transaction(ref, amount, currency):
     """
@@ -80,8 +85,6 @@ def confirm_transaction(ref, amount, currency):
         raise PayOnlineError(msg)
     return txn
 
-class Facade(object):
-    """
-    A bridge between oscar's objects and the payonline gateway object
-    """
-    pass
+
+def get_error_message(code):
+    return APIErrors().get(code)

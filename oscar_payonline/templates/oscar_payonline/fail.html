@@ -20,7 +20,7 @@
 {% block payment_details %}
     {% block payment_details_content %}
         <p>{% trans "Oops, something happens wrong while processing payment using PayOnline.ru service" %}</p>
-         <p>{% trans "Error code returned:" %}{{ error_code }}</p>
+         <p>{% trans "PayOnline answer:" %}{{ error }} ({% trans "error code:" %}{{ error_code }})</p>
          <a id="view_basket" href="{% url 'basket:summary' %}" class="btn btn-primary btn-lg">{% trans "Back to basket" %}</a>
         <a id="view_payment_method" href="{% url 'checkout:payment-method' %}" class="btn btn-primary btn-lg pull-right">{% trans "Try again" %}</a> 
         
