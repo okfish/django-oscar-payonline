@@ -1,0 +1,113 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2017-02-04 03:15+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: config.py:8
+msgid "Payonline extension for Oscar"
+msgstr ""
+
+#: templates/oscar_payonline/fail.html:6
+#: templates/oscar_payonline/fail.html:13
+msgid "Failed payment via PayOnline.ru"
+msgstr ""
+
+#: templates/oscar_payonline/fail.html:22
+msgid ""
+"Oops, something happens wrong while processing payment using PayOnline.ru "
+"service"
+msgstr ""
+
+#: templates/oscar_payonline/fail.html:23
+msgid "PayOnline answer:"
+msgstr ""
+
+#: templates/oscar_payonline/fail.html:23
+msgid "error code:"
+msgstr ""
+
+#: templates/oscar_payonline/fail.html:24
+msgid "Back to basket"
+msgstr ""
+
+#: templates/oscar_payonline/fail.html:25
+msgid "Try again"
+msgstr ""
+
+#: templates/oscar_payonline/preview.html:13
+msgid "Payment"
+msgstr ""
+
+#: templates/oscar_payonline/preview.html:16
+msgid "PayOnline"
+msgstr ""
+
+#: templates/oscar_payonline/preview.html:18
+#, python-format
+msgid ""
+"\n"
+"\t\t\t%(amt)s has been deducted from your account via PayOnline.ru using "
+"payment type '%(prov)s',\n"
+"\t\t\tPayOnline reference: %(ref)s.\n"
+"\t\t\t"
+msgstr ""
+
+#: templates/oscar_payonline/preview.html:28
+msgid "Please review the information above, then click 'Place Order'"
+msgstr ""
+
+#: views.py:181
+#, python-format
+msgid "Can't find order with given number: %s"
+msgstr ""
+
+#: views.py:206
+#, python-format
+msgid ""
+"Can't start to process order #%s. Is it possible, that you have paid it "
+"already?Please, check order status (%s) and call administrator if if you "
+"need a help"
+msgstr ""
+
+#: views.py:225
+#, python-format
+msgid ""
+"Can't freeze order #%s. Please, check order status (%s) and call "
+"administrator if if you need a help"
+msgstr ""
+
+#: views.py:298
+#, python-format
+msgid ""
+"Successful payment information received from Payonline.Transaction ID: %s. "
+"Order status changed"
+msgstr ""
+
+#: views.py:348
+msgid "Unable to determine PayOnline transaction details"
+msgstr ""
+
+#: views.py:359
+msgid ""
+"Sorry. We have not received payment confirmation yet. But hopes, it will "
+"happen soon."
+msgstr ""
+
+#: views.py:406
+#, python-format
+msgid "Payment for order #%(number)s failed. Reason:  %(msg)s"
+msgstr ""
