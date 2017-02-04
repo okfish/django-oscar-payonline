@@ -3,58 +3,60 @@
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: Django Oscar PayOnline App\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2017-02-04 03:15+0300\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"PO-Revision-Date: 2017-02-04 04:54+0300\n"
+"Last-Translator: Vladimir <azziev@gmail.com>\n"
+"Language-Team: LANGUAGE <support@aqstore.ru>\n"
+"Language: ru_RU\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Generator: Poedit 1.6.10\n"
 
 #: config.py:8
 msgid "Payonline extension for Oscar"
-msgstr ""
+msgstr "Payonline расширение для Django-Oscar"
 
 #: templates/oscar_payonline/fail.html:6
 #: templates/oscar_payonline/fail.html:13
 msgid "Failed payment via PayOnline.ru"
-msgstr ""
+msgstr "Оплата не подтверждена PayOnline.ru"
 
 #: templates/oscar_payonline/fail.html:22
 msgid ""
 "Oops, something happens wrong while processing payment using PayOnline.ru "
 "service"
-msgstr ""
+msgstr "Сервис PayOnline.ru сообщает об ошибке в процессе платежа"
 
 #: templates/oscar_payonline/fail.html:23
 msgid "PayOnline answer:"
-msgstr ""
+msgstr "Ответ PayOnline:"
 
 #: templates/oscar_payonline/fail.html:23
 msgid "error code:"
-msgstr ""
+msgstr "код ошибки:"
 
 #: templates/oscar_payonline/fail.html:24
 msgid "Back to basket"
-msgstr ""
+msgstr "Возврат в корзину"
 
 #: templates/oscar_payonline/fail.html:25
 msgid "Try again"
-msgstr ""
+msgstr "Новая попытка"
 
 #: templates/oscar_payonline/preview.html:13
 msgid "Payment"
-msgstr ""
+msgstr "Платеж"
 
 #: templates/oscar_payonline/preview.html:16
 msgid "PayOnline"
-msgstr ""
+msgstr "PayOnline"
 
 #: templates/oscar_payonline/preview.html:18
 #, python-format
@@ -65,15 +67,22 @@ msgid ""
 "\t\t\tPayOnline reference: %(ref)s.\n"
 "\t\t\t"
 msgstr ""
+"\n"
+"\t\t\t%(amt)s была списана с вашего счета процессинговым центром PayOnline."
+"ru.\n"
+"\t\t\tТип оплаты: '%(prov)s',\n"
+"\t\t\t Ссылка на информацию о платеже в PayOnline: %(ref)s."
 
 #: templates/oscar_payonline/preview.html:28
 msgid "Please review the information above, then click 'Place Order'"
 msgstr ""
+"Внимательно изучите информацию выше и затем нажмите на кнопку \"Сделать заказ"
+"\""
 
 #: views.py:181
 #, python-format
 msgid "Can't find order with given number: %s"
-msgstr ""
+msgstr "Заказ с номером №%s не найден."
 
 #: views.py:206
 #, python-format
@@ -82,6 +91,9 @@ msgid ""
 "already?Please, check order status (%s) and call administrator if if you "
 "need a help"
 msgstr ""
+"Не начать обработку заказа №%s. Вы могли оплатить этот заказ ранее? "
+"Проверьте статус заказа №%s в Личном кабинете. Если вам потребуется помощь, "
+"вы всегда можете позвонить менеджеру."
 
 #: views.py:225
 #, python-format
@@ -89,6 +101,8 @@ msgid ""
 "Can't freeze order #%s. Please, check order status (%s) and call "
 "administrator if if you need a help"
 msgstr ""
+"Не можем заморозить заказ №%s. Пожалуйста проверьте статус заказа (%s). Вы "
+"можете позвонить менеджеру, он постарается вам помочь."
 
 #: views.py:298
 #, python-format
@@ -96,18 +110,22 @@ msgid ""
 "Successful payment information received from Payonline.Transaction ID: %s. "
 "Order status changed"
 msgstr ""
+"Платеж подтвержден службой Payonline. Номер транзакции: %s. Статус заказа "
+"изменен."
 
 #: views.py:348
 msgid "Unable to determine PayOnline transaction details"
-msgstr ""
+msgstr "Невозможно получить детали транзакции от PayOnline"
 
 #: views.py:359
 msgid ""
 "Sorry. We have not received payment confirmation yet. But hopes, it will "
 "happen soon."
 msgstr ""
+"Извините, но мы пока еще не получили подтверждение платежа. Надеемся это "
+"скоро произойдет."
 
 #: views.py:406
 #, python-format
 msgid "Payment for order #%(number)s failed. Reason:  %(msg)s"
-msgstr ""
+msgstr "Платеж за заказ %(number)s не подтвержден. Причина:  %(msg)s"
